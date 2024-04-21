@@ -18,6 +18,8 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("GET /v1/healthz", handlerHealthz)
+
 	corsMux := middlewareCors(mux)
 
 	server := http.Server{
