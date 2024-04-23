@@ -7,7 +7,7 @@ import (
 )
 
 func respondWithError(w http.ResponseWriter, status int, errMsg string) {
-	if status <= 500 {
+	if status >= 500 {
 		log.Printf("Status %d response: %s", status, errMsg)
 	}
 
