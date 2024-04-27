@@ -56,3 +56,13 @@ func validateFeed(name, url_ string) bool {
 	_, err := url.ParseRequestURI(url_)
 	return name != "" && err == nil
 }
+
+func (c *apiConfig) handlerFeedsGet(w http.ResponseWriter, r *http.Request) {
+	dbFeeds, err := c.DB.GetFeeds(r.Context())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not get feeds")
+		return
+	}
+
+	respondWithJson(w, http.StatusOK, databaseFeedsToFeeds((dbFeeds)))
+}
