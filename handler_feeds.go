@@ -3,15 +3,17 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/speady1445/blog_aggregator/internal/database"
 )
 
-func (c *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
+func (c *apiConfig) handlerFeedsCreate(w http.ResponseWriter, r *http.Request, user database.User) {
 	type parameters struct {
 		Name string `json:"name"`
+		URL  string `json:"url"`
 	}
 
 	decoder := json.NewDecoder(r.Body)
@@ -22,8 +24,8 @@ func (c *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !validUserName(params.Name) {
-		respondWithError(w, http.StatusBadRequest, "Invalid user name")
+	if !validateFeed(params.Name, params.URL) {
+		respondWithError(w, http.StatusBadRequest, "Invalid feed name or url")
 		return
 	}
 
@@ -34,24 +36,23 @@ func (c *apiConfig) handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UTC()
-	dbUser, err := c.DB.CreateUser(r.Context(), database.CreateUserParams{
+	feed, err := c.DB.CreateFeed(r.Context(), database.CreateFeedParams{
 		ID:        uuid,
 		CreatedAt: now,
 		UpdatedAt: now,
 		Name:      params.Name,
+		Url:       params.URL,
+		UserID:    user.ID,
 	})
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create user")
+		respondWithError(w, http.StatusInternalServerError, "Could not create feed")
 		return
 	}
 
-	respondWithJson(w, http.StatusCreated, databaseUserToUser(dbUser))
+	respondWithJson(w, http.StatusCreated, databaseFeedToFeed(feed))
 }
 
-func validUserName(name string) bool {
-	return name != ""
-}
-
-func (c *apiConfig) handlerUsersGet(w http.ResponseWriter, r *http.Request, dbUser database.User) {
-	respondWithJson(w, http.StatusOK, databaseUserToUser(dbUser))
+func validateFeed(name, url_ string) bool {
+	_, err := url.ParseRequestURI(url_)
+	return name != "" && err == nil
 }
