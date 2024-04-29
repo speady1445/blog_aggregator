@@ -16,6 +16,11 @@ func (c *apiConfig) handlerFeedsCreate(w http.ResponseWriter, r *http.Request, u
 		URL  string `json:"url"`
 	}
 
+	type response struct {
+		Feed       Feed       `json:"feed"`
+		FeedFollow FeedFollow `json:"feed_follow"`
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	params := parameters{}
 	err := decoder.Decode(&params)
@@ -49,7 +54,16 @@ func (c *apiConfig) handlerFeedsCreate(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	respondWithJson(w, http.StatusCreated, databaseFeedToFeed(feed))
+	feedFollow, err := c.feedFollowsCreate(r, user.ID, feed.ID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create feed follow")
+		return
+	}
+
+	respondWithJson(w, http.StatusCreated, response{
+		Feed:       databaseFeedToFeed(feed),
+		FeedFollow: feedFollow,
+	})
 }
 
 func validateFeed(name, url_ string) bool {
