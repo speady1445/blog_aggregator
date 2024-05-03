@@ -5,9 +5,11 @@ import (
 	"encoding/xml"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/speady1445/blog_aggregator/internal/database"
 )
 
@@ -16,16 +18,18 @@ type RSSFeed struct {
 		Title       string `xml:"title"`
 		Link        string `xml:"link"`
 		Desctiption string `xml:"description"`
-		Items       []struct {
-			Title       string `xml:"title"`
-			Link        string `xml:"link"`
-			PubDate     time_  `xml:"pubDate"`
-			Description string `xml:"description"`
-		} `xml:"item"`
+		Items       []Post `xml:"item"`
 	} `xml:"channel"`
 }
 
 type time_ time.Time
+
+type Post struct {
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	PubDate     time_  `xml:"pubDate"`
+	Description string `xml:"description"`
+}
 
 func (t *time_) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	var s string
@@ -95,5 +99,32 @@ func scrapeFeed(wg *sync.WaitGroup, db *database.Queries, feed database.Feed) {
 		return
 	}
 
-	log.Printf("Fetched successfully from %s, found %d items", rss.Channel.Title, len(rss.Channel.Items))
+	for _, post := range rss.Channel.Items {
+		savePost(db, feed, post)
+	}
+	log.Printf("Saved %d posts from %s", len(rss.Channel.Items), rss.Channel.Title)
+}
+
+func savePost(db *database.Queries, feed database.Feed, post Post) {
+	uuid, err := uuid.NewRandom()
+	if err != nil {
+		log.Println("Error generating UUID:", err)
+		return
+	}
+
+	now := time.Now().UTC()
+
+	_, err = db.CreatePost(context.Background(), database.CreatePostParams{
+		ID:          uuid,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		Title:       post.Title,
+		Url:         post.Link,
+		Description: post.Description,
+		PublishedAt: time.Time(post.PubDate),
+		FeedID:      feed.ID,
+	})
+	if err != nil && !strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+		log.Printf("Could not create post: %s from feed %s with error: %s", post.Title, feed.Name, err)
+	}
 }
