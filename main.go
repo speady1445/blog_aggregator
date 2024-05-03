@@ -5,10 +5,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"github.com/speady1445/blog_aggregator/internal/database"
+	"github.com/speady1445/blog_aggregator/internal/scraper"
 )
 
 type apiConfig struct {
@@ -57,6 +59,10 @@ func main() {
 		Addr:    ":" + port,
 		Handler: corsMux,
 	}
+
+	const collectionLimit = 2
+	const collectionInterval = time.Minute
+	go scraper.Start(dbQueries, collectionLimit, collectionInterval)
 
 	log.Println("Listening on port " + port)
 	server.ListenAndServe()
